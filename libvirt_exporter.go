@@ -18,14 +18,15 @@ package main
 
 import (
 	"encoding/xml"
+	"github.com/AlexZzz/libvirt-exporter/libvirtSchema"
 	"github.com/libvirt/libvirt-go"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"github.com/AlexZzz/libvirt-exporter/libvirtSchema"
 	"gopkg.in/alecthomas/kingpin.v2"
 	"log"
 	"net/http"
 	"os"
+	"regexp"
 )
 
 var (
@@ -43,190 +44,192 @@ var (
 	libvirtDomainInfoMaxMemBytesDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_info", "maximum_memory_bytes"),
 		"Maximum allowed memory of the domain, in bytes.",
-		[]string{"domain"},
+		[]string{"domain", "uuid", "instance_name", "flavor", "user_name", "user_uuid", "project_name", "project_uuid", "root_type", "root_uuid"},
 		nil)
 	libvirtDomainInfoMemoryUsageBytesDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_info", "memory_usage_bytes"),
 		"Memory usage of the domain, in bytes.",
-		[]string{"domain"},
+		[]string{"domain", "uuid", "instance_name", "flavor", "user_name", "user_uuid", "project_name", "project_uuid", "root_type", "root_uuid"},
 		nil)
 	libvirtDomainInfoNrVirtCPUDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_info", "virtual_cpus"),
 		"Number of virtual CPUs for the domain.",
-		[]string{"domain"},
+		[]string{"domain", "uuid", "instance_name", "flavor", "user_name", "user_uuid", "project_name", "project_uuid", "root_type", "root_uuid"},
 		nil)
 	libvirtDomainInfoCPUTimeDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_info", "cpu_time_seconds_total"),
 		"Amount of CPU time used by the domain, in seconds.",
-		[]string{"domain"},
+		[]string{"domain", "uuid", "instance_name", "flavor", "user_name", "user_uuid", "project_name", "project_uuid", "root_type", "root_uuid"},
 		nil)
 	libvirtDomainInfoVirDomainState = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_info", "vstate"),
 		"Virtual domain state. 0: no state, 1: the domain is running, 2: the domain is blocked on resource,"+
 			" 3: the domain is paused by user, 4: the domain is being shut down, 5: the domain is shut off,"+
 			"6: the domain is crashed, 7: the domain is suspended by guest power management",
-		[]string{"domain"},
+		[]string{"domain", "uuid", "instance_name", "flavor", "user_name", "user_uuid", "project_name", "project_uuid", "root_type", "root_uuid"},
 		nil)
 
 	libvirtDomainMetaBlockDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_block", "meta"),
 		"Block device metadata info. Device name, source file, serial.",
-		[]string{"domain", "target_device", "source_file", "serial", "bus", "disk_type", "driver_type", "cache", "discard"},
+		[]string{"domain", "uuid", "instance_name", "flavor", "user_name", "user_uuid", "project_name", "project_uuid", "root_type", "root_uuid", "target_device", "source_file", "serial", "bus", "disk_type", "driver_type", "cache", "discard"},
 		nil)
 	libvirtDomainBlockRdBytesDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_block_stats", "read_bytes_total"),
 		"Number of bytes read from a block device, in bytes.",
-		[]string{"domain", "target_device"},
+		[]string{"domain", "uuid", "instance_name", "flavor", "user_name", "user_uuid", "project_name", "project_uuid", "root_type", "root_uuid", "target_device", "source_file", "serial", "bus", "disk_type", "driver_type", "cache", "discard"},
 		nil)
 	libvirtDomainBlockRdReqDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_block_stats", "read_requests_total"),
 		"Number of read requests from a block device.",
-		[]string{"domain", "target_device"},
+		[]string{"domain", "uuid", "instance_name", "flavor", "user_name", "user_uuid", "project_name", "project_uuid", "root_type", "root_uuid", "target_device", "source_file", "serial", "bus", "disk_type", "driver_type", "cache", "discard"},
 		nil)
 	libvirtDomainBlockRdTotalTimeSecondsDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_block_stats", "read_time_seconds_total"),
 		"Total time spent on reads from a block device, in seconds.",
-		[]string{"domain", "target_device"},
+		[]string{"domain", "uuid", "instance_name", "flavor", "user_name", "user_uuid", "project_name", "project_uuid", "root_type", "root_uuid", "target_device", "source_file", "serial", "bus", "disk_type", "driver_type", "cache", "discard"},
 		nil)
 	libvirtDomainBlockWrBytesDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_block_stats", "write_bytes_total"),
 		"Number of bytes written to a block device, in bytes.",
-		[]string{"domain", "target_device"},
+		[]string{"domain", "uuid", "instance_name", "flavor", "user_name", "user_uuid", "project_name", "project_uuid", "root_type", "root_uuid", "target_device", "source_file", "serial", "bus", "disk_type", "driver_type", "cache", "discard"},
 		nil)
 	libvirtDomainBlockWrReqDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_block_stats", "write_requests_total"),
 		"Number of write requests to a block device.",
-		[]string{"domain", "target_device"},
+		[]string{"domain", "uuid", "instance_name", "flavor", "user_name", "user_uuid", "project_name", "project_uuid", "root_type", "root_uuid", "target_device", "source_file", "serial", "bus", "disk_type", "driver_type", "cache", "discard"},
 		nil)
 	libvirtDomainBlockWrTotalTimesDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_block_stats", "write_time_seconds_total"),
 		"Total time spent on writes on a block device, in seconds",
-		[]string{"domain", "target_device"},
+		[]string{"domain", "uuid", "instance_name", "flavor", "user_name", "user_uuid", "project_name", "project_uuid", "root_type", "root_uuid", "target_device", "source_file", "serial", "bus", "disk_type", "driver_type", "cache", "discard"},
 		nil)
 	libvirtDomainBlockFlushReqDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_block_stats", "flush_requests_total"),
 		"Total flush requests from a block device.",
-		[]string{"domain", "target_device"},
+		[]string{"domain", "uuid", "instance_name", "flavor", "user_name", "user_uuid", "project_name", "project_uuid", "root_type", "root_uuid", "target_device", "source_file", "serial", "bus", "disk_type", "driver_type", "cache", "discard"},
 		nil)
 	libvirtDomainBlockFlushTotalTimeSecondsDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_block_stats", "flush_time_seconds_total"),
 		"Total time in seconds spent on cache flushing to a block device",
-		[]string{"domain", "target_device"},
+		[]string{"domain", "uuid", "instance_name", "flavor", "user_name", "user_uuid", "project_name", "project_uuid", "root_type", "root_uuid", "target_device", "source_file", "serial", "bus", "disk_type", "driver_type", "cache", "discard"},
 		nil)
 	libvirtDomainBlockAllocationDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_block_stats", "allocation"),
 		"Offset of the highest written sector on a block device.",
-		[]string{"domain", "target_device"},
+		[]string{"domain", "uuid", "instance_name", "flavor", "user_name", "user_uuid", "project_name", "project_uuid", "root_type", "root_uuid", "target_device", "source_file", "serial", "bus", "disk_type", "driver_type", "cache", "discard"},
 		nil)
 	libvirtDomainBlockCapacityBytesDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_block_stats", "capacity_bytes"),
 		"Logical size in bytes of the block device	backing image.",
-		[]string{"domain", "target_device"},
+		[]string{"domain", "uuid", "instance_name", "flavor", "user_name", "user_uuid", "project_name", "project_uuid", "root_type", "root_uuid", "target_device", "source_file", "serial", "bus", "disk_type", "driver_type", "cache", "discard"},
 		nil)
 	libvirtDomainBlockPhysicalSizeBytesDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_block_stats", "physicalsize_bytes"),
 		"Physical size in bytes of the container of the backing image.",
-		[]string{"domain", "target_device"},
+		[]string{"domain", "uuid", "instance_name", "flavor", "user_name", "user_uuid", "project_name", "project_uuid", "root_type", "root_uuid", "target_device", "source_file", "serial", "bus", "disk_type", "driver_type", "cache", "discard"},
 		nil)
 
 	libvirtDomainMetaInterfacesDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_interface", "meta"),
 		"Interfaces metadata. Source bridge, target device, interface uuid",
-		[]string{"domain", "source_bridge", "target_device", "virtual_interface"},
+		[]string{"domain", "uuid", "instance_name", "flavor", "user_name", "user_uuid", "project_name", "project_uuid", "root_type", "root_uuid", "target_device", "source_bridge", "virtual_interface"},
 		nil)
 	libvirtDomainInterfaceRxBytesDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_interface_stats", "receive_bytes_total"),
 		"Number of bytes received on a network interface, in bytes.",
-		[]string{"domain", "target_device"},
+		[]string{"domain", "uuid", "instance_name", "flavor", "user_name", "user_uuid", "project_name", "project_uuid", "root_type", "root_uuid", "target_device", "source_bridge", "virtual_interface"},
 		nil)
 	libvirtDomainInterfaceRxPacketsDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_interface_stats", "receive_packets_total"),
 		"Number of packets received on a network interface.",
-		[]string{"domain", "target_device"},
+		[]string{"domain", "uuid", "instance_name", "flavor", "user_name", "user_uuid", "project_name", "project_uuid", "root_type", "root_uuid", "target_device", "source_bridge", "virtual_interface"},
 		nil)
 	libvirtDomainInterfaceRxErrsDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_interface_stats", "receive_errors_total"),
 		"Number of packet receive errors on a network interface.",
-		[]string{"domain", "target_device"},
+		[]string{"domain", "uuid", "instance_name", "flavor", "user_name", "user_uuid", "project_name", "project_uuid", "root_type", "root_uuid", "target_device", "source_bridge", "virtual_interface"},
 		nil)
 	libvirtDomainInterfaceRxDropDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_interface_stats", "receive_drops_total"),
 		"Number of packet receive drops on a network interface.",
-		[]string{"domain", "target_device"},
+		[]string{"domain", "uuid", "instance_name", "flavor", "user_name", "user_uuid", "project_name", "project_uuid", "root_type", "root_uuid", "target_device", "source_bridge", "virtual_interface"},
 		nil)
 	libvirtDomainInterfaceTxBytesDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_interface_stats", "transmit_bytes_total"),
 		"Number of bytes transmitted on a network interface, in bytes.",
-		[]string{"domain", "target_device"},
+		[]string{"domain", "uuid", "instance_name", "flavor", "user_name", "user_uuid", "project_name", "project_uuid", "root_type", "root_uuid", "target_device", "source_bridge", "virtual_interface"},
 		nil)
 	libvirtDomainInterfaceTxPacketsDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_interface_stats", "transmit_packets_total"),
 		"Number of packets transmitted on a network interface.",
-		[]string{"domain", "target_device"},
+		[]string{"domain", "uuid", "instance_name", "flavor", "user_name", "user_uuid", "project_name", "project_uuid", "root_type", "root_uuid", "target_device", "source_bridge", "virtual_interface"},
 		nil)
 	libvirtDomainInterfaceTxErrsDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_interface_stats", "transmit_errors_total"),
 		"Number of packet transmit errors on a network interface.",
-		[]string{"domain", "target_device"},
+		[]string{"domain", "uuid", "instance_name", "flavor", "user_name", "user_uuid", "project_name", "project_uuid", "root_type", "root_uuid", "target_device", "source_bridge", "virtual_interface"},
 		nil)
 	libvirtDomainInterfaceTxDropDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_interface_stats", "transmit_drops_total"),
 		"Number of packet transmit drops on a network interface.",
-		[]string{"domain", "target_device"},
+		[]string{"domain", "uuid", "instance_name", "flavor", "user_name", "user_uuid", "project_name", "project_uuid", "root_type", "root_uuid", "target_device", "source_bridge", "virtual_interface"},
 		nil)
 
 	libvirtDomainMemoryStatMajorFaultTotalDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_memory_stats", "major_fault_total"),
 		"Page faults occur when a process makes a valid access to virtual memory that is not available. "+
 			"When servicing the page fault, if disk IO is required, it is considered a major fault.",
-		[]string{"domain"},
+		[]string{"domain", "uuid", "instance_name", "flavor", "user_name", "user_uuid", "project_name", "project_uuid", "root_type", "root_uuid"},
 		nil)
 	libvirtDomainMemoryStatMinorFaultTotalDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_memory_stats", "minor_fault_total"),
 		"Page faults occur when a process makes a valid access to virtual memory that is not available. "+
 			"When servicing the page not fault, if disk IO is required, it is considered a minor fault.",
-		[]string{"domain"},
+		[]string{"domain", "uuid", "instance_name", "flavor", "user_name", "user_uuid", "project_name", "project_uuid", "root_type", "root_uuid"},
 		nil)
 	libvirtDomainMemoryStatUnusedBytesDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_memory_stats", "unused_bytes"),
 		"The amount of memory left completely unused by the system. Memory that is available but used for "+
 			"reclaimable caches should NOT be reported as free. This value is expressed in bytes.",
-		[]string{"domain"},
+		[]string{"domain", "uuid", "instance_name", "flavor", "user_name", "user_uuid", "project_name", "project_uuid", "root_type", "root_uuid"},
 		nil)
 	libvirtDomainMemoryStatAvailableBytesDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_memory_stats", "available_bytes"),
 		"The total amount of usable memory as seen by the domain. This value may be less than the amount of "+
 			"memory assigned to the domain if a balloon driver is in use or if the guest OS does not initialize all "+
 			"assigned pages. This value is expressed in bytes.",
-		[]string{"domain"},
+		[]string{"domain", "uuid", "instance_name", "flavor", "user_name", "user_uuid", "project_name", "project_uuid", "root_type", "root_uuid"},
 		nil)
 	libvirtDomainMemoryStatActualBaloonBytesDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_memory_stats", "actual_balloon_bytes"),
 		"Current balloon value (in bytes).",
-		[]string{"domain"},
+		[]string{"domain", "uuid", "instance_name", "flavor", "user_name", "user_uuid", "project_name", "project_uuid", "root_type", "root_uuid"},
 		nil)
 	libvirtDomainMemoryStatRssBytesDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_memory_stats", "rss_bytes"),
 		"Resident Set Size of the process running the domain. This value is in bytes",
-		[]string{"domain"},
+		[]string{"domain", "uuid", "instance_name", "flavor", "user_name", "user_uuid", "project_name", "project_uuid", "root_type", "root_uuid"},
 		nil)
 	libvirtDomainMemoryStatUsableBytesDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_memory_stats", "usable_bytes"),
 		"How much the balloon can be inflated without pushing the guest system to swap, corresponds "+
 			"to 'Available' in /proc/meminfo",
-		[]string{"domain"},
+		[]string{"domain", "uuid", "instance_name", "flavor", "user_name", "user_uuid", "project_name", "project_uuid", "root_type", "root_uuid"},
 		nil)
 	libvirtDomainMemoryStatDiskCachesBytesDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_memory_stats", "disk_cache_bytes"),
 		"The amount of memory, that can be quickly reclaimed without additional I/O (in bytes)."+
 			"Typically these pages are used for caching files from disk.",
-		[]string{"domain"},
+		[]string{"domain", "uuid", "instance_name", "flavor", "user_name", "user_uuid", "project_name", "project_uuid", "root_type", "root_uuid"},
 		nil)
 	libvirtDomainMemoryStatUsedPercentDesc = prometheus.NewDesc(
 		prometheus.BuildFQName("libvirt", "domain_memory_stats", "used_percent"),
 		"The amount of memory in percent, that used by domain.",
-		[]string{"domain"},
+		[]string{"domain", "uuid", "instance_name", "flavor", "user_name", "user_uuid", "project_name", "project_uuid", "root_type", "root_uuid"},
 		nil)
+
+	projectFilter *string
 )
 
 // CollectDomain extracts Prometheus metrics from a libvirt domain.
@@ -252,11 +255,16 @@ func CollectDomain(ch chan<- prometheus.Metric, stat libvirt.DomainStats) error 
 		return err
 	}
 
+	match, _ := regexp.MatchString(*projectFilter, desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectName)
+	if match {
+		return nil
+	}
 	// Report domain info.
 	info, err := stat.Domain.GetInfo()
 	if err != nil {
 		return err
 	}
+	// "domain", "uuid", "instance_name", "flavor", "user_name", "user_uuid", "project_name", "project_uuid", "root_type", "root_uuid"
 	ch <- prometheus.MustNewConstMetric(
 		libvirtDomainInfoMetaDesc,
 		prometheus.GaugeValue,
@@ -275,27 +283,72 @@ func CollectDomain(ch chan<- prometheus.Metric, stat libvirt.DomainStats) error 
 		libvirtDomainInfoMaxMemBytesDesc,
 		prometheus.GaugeValue,
 		float64(info.MaxMem)*1024,
-		domainName)
+		domainName,
+		domainUUID,
+		desc.Metadata.NovaInstance.NovaName,
+		desc.Metadata.NovaInstance.NovaFlavor.FlavorName,
+		desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserName,
+		desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserUUID,
+		desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectName,
+		desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectUUID,
+		desc.Metadata.NovaInstance.NovaRoot.RootType,
+		desc.Metadata.NovaInstance.NovaRoot.RootUUID)
 	ch <- prometheus.MustNewConstMetric(
 		libvirtDomainInfoMemoryUsageBytesDesc,
 		prometheus.GaugeValue,
 		float64(info.Memory)*1024,
-		domainName)
+		domainName,
+		domainUUID,
+		desc.Metadata.NovaInstance.NovaName,
+		desc.Metadata.NovaInstance.NovaFlavor.FlavorName,
+		desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserName,
+		desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserUUID,
+		desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectName,
+		desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectUUID,
+		desc.Metadata.NovaInstance.NovaRoot.RootType,
+		desc.Metadata.NovaInstance.NovaRoot.RootUUID)
 	ch <- prometheus.MustNewConstMetric(
 		libvirtDomainInfoNrVirtCPUDesc,
 		prometheus.GaugeValue,
 		float64(info.NrVirtCpu),
-		domainName)
+		domainName,
+		domainUUID,
+		desc.Metadata.NovaInstance.NovaName,
+		desc.Metadata.NovaInstance.NovaFlavor.FlavorName,
+		desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserName,
+		desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserUUID,
+		desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectName,
+		desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectUUID,
+		desc.Metadata.NovaInstance.NovaRoot.RootType,
+		desc.Metadata.NovaInstance.NovaRoot.RootUUID)
 	ch <- prometheus.MustNewConstMetric(
 		libvirtDomainInfoCPUTimeDesc,
 		prometheus.CounterValue,
-		float64(info.CpuTime),
-		domainName)
+		float64(info.CpuTime)/1e9,
+		domainName,
+		domainUUID,
+		desc.Metadata.NovaInstance.NovaName,
+		desc.Metadata.NovaInstance.NovaFlavor.FlavorName,
+		desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserName,
+		desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserUUID,
+		desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectName,
+		desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectUUID,
+		desc.Metadata.NovaInstance.NovaRoot.RootType,
+		desc.Metadata.NovaInstance.NovaRoot.RootUUID)
 	ch <- prometheus.MustNewConstMetric(
 		libvirtDomainInfoVirDomainState,
 		prometheus.GaugeValue,
 		float64(info.State),
-		domainName)
+		domainName,
+		domainUUID,
+		desc.Metadata.NovaInstance.NovaName,
+		desc.Metadata.NovaInstance.NovaFlavor.FlavorName,
+		desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserName,
+		desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserUUID,
+		desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectName,
+		desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectUUID,
+		desc.Metadata.NovaInstance.NovaRoot.RootType,
+		desc.Metadata.NovaInstance.NovaRoot.RootUUID)
 	// Report block device statistics.
 	for _, disk := range stat.Block {
 		var DiskSource string
@@ -318,12 +371,22 @@ func CollectDomain(ch chan<- prometheus.Metric, stat libvirt.DomainStats) error 
 				break
 			}
 		}
-
+		
+		// "target_device", "source_file", "serial", "bus", "disk_type", "driver_type", "cache", "discard"
 		ch <- prometheus.MustNewConstMetric(
 			libvirtDomainMetaBlockDesc,
 			prometheus.GaugeValue,
 			float64(1),
 			domainName,
+			domainUUID,
+			desc.Metadata.NovaInstance.NovaName,
+			desc.Metadata.NovaInstance.NovaFlavor.FlavorName,
+			desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserName,
+			desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserUUID,
+			desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectName,
+			desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectUUID,
+			desc.Metadata.NovaInstance.NovaRoot.RootType,
+			desc.Metadata.NovaInstance.NovaRoot.RootUUID,
 			disk.Name,
 			DiskSource,
 			Device.Serial,
@@ -341,7 +404,23 @@ func CollectDomain(ch chan<- prometheus.Metric, stat libvirt.DomainStats) error 
 				prometheus.CounterValue,
 				float64(disk.RdBytes),
 				domainName,
-				disk.Name)
+				domainUUID,
+				desc.Metadata.NovaInstance.NovaName,
+				desc.Metadata.NovaInstance.NovaFlavor.FlavorName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserUUID,
+				desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectUUID,
+				desc.Metadata.NovaInstance.NovaRoot.RootType,
+				desc.Metadata.NovaInstance.NovaRoot.RootUUID,
+				disk.Name,
+				DiskSource,
+				Device.Serial,
+				Device.Target.Bus,
+				Device.DiskType,
+				Device.Driver.Type,
+				Device.Driver.Cache,
+				Device.Driver.Discard)
 		}
 		if disk.RdReqsSet {
 			ch <- prometheus.MustNewConstMetric(
@@ -349,7 +428,23 @@ func CollectDomain(ch chan<- prometheus.Metric, stat libvirt.DomainStats) error 
 				prometheus.CounterValue,
 				float64(disk.RdReqs),
 				domainName,
-				disk.Name)
+				domainUUID,
+				desc.Metadata.NovaInstance.NovaName,
+				desc.Metadata.NovaInstance.NovaFlavor.FlavorName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserUUID,
+				desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectUUID,
+				desc.Metadata.NovaInstance.NovaRoot.RootType,
+				desc.Metadata.NovaInstance.NovaRoot.RootUUID,
+				disk.Name,
+				DiskSource,
+				Device.Serial,
+				Device.Target.Bus,
+				Device.DiskType,
+				Device.Driver.Type,
+				Device.Driver.Cache,
+				Device.Driver.Discard)
 		}
 		if disk.RdTimesSet {
 			ch <- prometheus.MustNewConstMetric(
@@ -357,7 +452,23 @@ func CollectDomain(ch chan<- prometheus.Metric, stat libvirt.DomainStats) error 
 				prometheus.CounterValue,
 				float64(disk.RdTimes)/1e9,
 				domainName,
-				disk.Name)
+				domainUUID,
+				desc.Metadata.NovaInstance.NovaName,
+				desc.Metadata.NovaInstance.NovaFlavor.FlavorName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserUUID,
+				desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectUUID,
+				desc.Metadata.NovaInstance.NovaRoot.RootType,
+				desc.Metadata.NovaInstance.NovaRoot.RootUUID,
+				disk.Name,
+				DiskSource,
+				Device.Serial,
+				Device.Target.Bus,
+				Device.DiskType,
+				Device.Driver.Type,
+				Device.Driver.Cache,
+				Device.Driver.Discard)
 		}
 		if disk.WrBytesSet {
 			ch <- prometheus.MustNewConstMetric(
@@ -365,7 +476,23 @@ func CollectDomain(ch chan<- prometheus.Metric, stat libvirt.DomainStats) error 
 				prometheus.CounterValue,
 				float64(disk.WrBytes),
 				domainName,
-				disk.Name)
+				domainUUID,
+				desc.Metadata.NovaInstance.NovaName,
+				desc.Metadata.NovaInstance.NovaFlavor.FlavorName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserUUID,
+				desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectUUID,
+				desc.Metadata.NovaInstance.NovaRoot.RootType,
+				desc.Metadata.NovaInstance.NovaRoot.RootUUID,
+				disk.Name,
+				DiskSource,
+				Device.Serial,
+				Device.Target.Bus,
+				Device.DiskType,
+				Device.Driver.Type,
+				Device.Driver.Cache,
+				Device.Driver.Discard)
 		}
 		if disk.WrReqsSet {
 			ch <- prometheus.MustNewConstMetric(
@@ -373,7 +500,23 @@ func CollectDomain(ch chan<- prometheus.Metric, stat libvirt.DomainStats) error 
 				prometheus.CounterValue,
 				float64(disk.WrReqs),
 				domainName,
-				disk.Name)
+				domainUUID,
+				desc.Metadata.NovaInstance.NovaName,
+				desc.Metadata.NovaInstance.NovaFlavor.FlavorName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserUUID,
+				desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectUUID,
+				desc.Metadata.NovaInstance.NovaRoot.RootType,
+				desc.Metadata.NovaInstance.NovaRoot.RootUUID,
+				disk.Name,
+				DiskSource,
+				Device.Serial,
+				Device.Target.Bus,
+				Device.DiskType,
+				Device.Driver.Type,
+				Device.Driver.Cache,
+				Device.Driver.Discard)
 		}
 		if disk.WrTimesSet {
 			ch <- prometheus.MustNewConstMetric(
@@ -381,7 +524,23 @@ func CollectDomain(ch chan<- prometheus.Metric, stat libvirt.DomainStats) error 
 				prometheus.CounterValue,
 				float64(disk.WrTimes)/1e9,
 				domainName,
-				disk.Name)
+				domainUUID,
+				desc.Metadata.NovaInstance.NovaName,
+				desc.Metadata.NovaInstance.NovaFlavor.FlavorName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserUUID,
+				desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectUUID,
+				desc.Metadata.NovaInstance.NovaRoot.RootType,
+				desc.Metadata.NovaInstance.NovaRoot.RootUUID,
+				disk.Name,
+				DiskSource,
+				Device.Serial,
+				Device.Target.Bus,
+				Device.DiskType,
+				Device.Driver.Type,
+				Device.Driver.Cache,
+				Device.Driver.Discard)
 		}
 		if disk.FlReqsSet {
 			ch <- prometheus.MustNewConstMetric(
@@ -389,7 +548,23 @@ func CollectDomain(ch chan<- prometheus.Metric, stat libvirt.DomainStats) error 
 				prometheus.CounterValue,
 				float64(disk.FlReqs),
 				domainName,
-				disk.Name)
+				domainUUID,
+				desc.Metadata.NovaInstance.NovaName,
+				desc.Metadata.NovaInstance.NovaFlavor.FlavorName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserUUID,
+				desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectUUID,
+				desc.Metadata.NovaInstance.NovaRoot.RootType,
+				desc.Metadata.NovaInstance.NovaRoot.RootUUID,
+				disk.Name,
+				DiskSource,
+				Device.Serial,
+				Device.Target.Bus,
+				Device.DiskType,
+				Device.Driver.Type,
+				Device.Driver.Cache,
+				Device.Driver.Discard)
 		}
 		if disk.FlTimesSet {
 			ch <- prometheus.MustNewConstMetric(
@@ -397,7 +572,23 @@ func CollectDomain(ch chan<- prometheus.Metric, stat libvirt.DomainStats) error 
 				prometheus.CounterValue,
 				float64(disk.FlTimes)/1e9,
 				domainName,
-				disk.Name)
+				domainUUID,
+				desc.Metadata.NovaInstance.NovaName,
+				desc.Metadata.NovaInstance.NovaFlavor.FlavorName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserUUID,
+				desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectUUID,
+				desc.Metadata.NovaInstance.NovaRoot.RootType,
+				desc.Metadata.NovaInstance.NovaRoot.RootUUID,
+				disk.Name,
+				DiskSource,
+				Device.Serial,
+				Device.Target.Bus,
+				Device.DiskType,
+				Device.Driver.Type,
+				Device.Driver.Cache,
+				Device.Driver.Discard)
 		}
 		if disk.AllocationSet {
 			ch <- prometheus.MustNewConstMetric(
@@ -405,7 +596,23 @@ func CollectDomain(ch chan<- prometheus.Metric, stat libvirt.DomainStats) error 
 				prometheus.GaugeValue,
 				float64(disk.Allocation),
 				domainName,
-				disk.Name)
+				domainUUID,
+				desc.Metadata.NovaInstance.NovaName,
+				desc.Metadata.NovaInstance.NovaFlavor.FlavorName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserUUID,
+				desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectUUID,
+				desc.Metadata.NovaInstance.NovaRoot.RootType,
+				desc.Metadata.NovaInstance.NovaRoot.RootUUID,
+				disk.Name,
+				DiskSource,
+				Device.Serial,
+				Device.Target.Bus,
+				Device.DiskType,
+				Device.Driver.Type,
+				Device.Driver.Cache,
+				Device.Driver.Discard)
 		}
 		if disk.CapacitySet {
 			ch <- prometheus.MustNewConstMetric(
@@ -413,7 +620,23 @@ func CollectDomain(ch chan<- prometheus.Metric, stat libvirt.DomainStats) error 
 				prometheus.GaugeValue,
 				float64(disk.Capacity),
 				domainName,
-				disk.Name)
+				domainUUID,
+				desc.Metadata.NovaInstance.NovaName,
+				desc.Metadata.NovaInstance.NovaFlavor.FlavorName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserUUID,
+				desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectUUID,
+				desc.Metadata.NovaInstance.NovaRoot.RootType,
+				desc.Metadata.NovaInstance.NovaRoot.RootUUID,
+				disk.Name,
+				DiskSource,
+				Device.Serial,
+				Device.Target.Bus,
+				Device.DiskType,
+				Device.Driver.Type,
+				Device.Driver.Cache,
+				Device.Driver.Discard)
 		}
 		if disk.PhysicalSet {
 			ch <- prometheus.MustNewConstMetric(
@@ -421,7 +644,23 @@ func CollectDomain(ch chan<- prometheus.Metric, stat libvirt.DomainStats) error 
 				prometheus.GaugeValue,
 				float64(disk.Physical),
 				domainName,
-				disk.Name)
+				domainUUID,
+				desc.Metadata.NovaInstance.NovaName,
+				desc.Metadata.NovaInstance.NovaFlavor.FlavorName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserUUID,
+				desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectUUID,
+				desc.Metadata.NovaInstance.NovaRoot.RootType,
+				desc.Metadata.NovaInstance.NovaRoot.RootUUID,
+				disk.Name,
+				DiskSource,
+				Device.Serial,
+				Device.Target.Bus,
+				Device.DiskType,
+				Device.Driver.Type,
+				Device.Driver.Cache,
+				Device.Driver.Discard)
 		}
 	}
 
@@ -437,13 +676,23 @@ func CollectDomain(ch chan<- prometheus.Metric, stat libvirt.DomainStats) error 
 				break
 			}
 		}
+		// "target_device", "source_bridge", "virtual_interface"
 		ch <- prometheus.MustNewConstMetric(
 			libvirtDomainMetaInterfacesDesc,
 			prometheus.GaugeValue,
 			float64(1),
 			domainName,
-			SourceBridge,
+			domainUUID,
+			desc.Metadata.NovaInstance.NovaName,
+			desc.Metadata.NovaInstance.NovaFlavor.FlavorName,
+			desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserName,
+			desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserUUID,
+			desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectName,
+			desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectUUID,
+			desc.Metadata.NovaInstance.NovaRoot.RootType,
+			desc.Metadata.NovaInstance.NovaRoot.RootUUID,
 			iface.Name,
+			SourceBridge,
 			VirtualInterface)
 		if iface.RxBytesSet {
 			ch <- prometheus.MustNewConstMetric(
@@ -451,64 +700,152 @@ func CollectDomain(ch chan<- prometheus.Metric, stat libvirt.DomainStats) error 
 				prometheus.CounterValue,
 				float64(iface.RxBytes),
 				domainName,
-				iface.Name)
-		}
+				domainUUID,
+				desc.Metadata.NovaInstance.NovaName,
+				desc.Metadata.NovaInstance.NovaFlavor.FlavorName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserUUID,
+				desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectUUID,
+				desc.Metadata.NovaInstance.NovaRoot.RootType,
+				desc.Metadata.NovaInstance.NovaRoot.RootUUID,
+				iface.Name,
+				SourceBridge,
+				VirtualInterface)
+			}
 		if iface.RxPktsSet {
 			ch <- prometheus.MustNewConstMetric(
 				libvirtDomainInterfaceRxPacketsDesc,
 				prometheus.CounterValue,
 				float64(iface.RxPkts),
 				domainName,
-				iface.Name)
-		}
+				domainUUID,
+				desc.Metadata.NovaInstance.NovaName,
+				desc.Metadata.NovaInstance.NovaFlavor.FlavorName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserUUID,
+				desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectUUID,
+				desc.Metadata.NovaInstance.NovaRoot.RootType,
+				desc.Metadata.NovaInstance.NovaRoot.RootUUID,
+				iface.Name,
+				SourceBridge,
+				VirtualInterface)
+			}
 		if iface.RxErrsSet {
 			ch <- prometheus.MustNewConstMetric(
 				libvirtDomainInterfaceRxErrsDesc,
 				prometheus.CounterValue,
 				float64(iface.RxErrs),
 				domainName,
-				iface.Name)
-		}
+				domainUUID,
+				desc.Metadata.NovaInstance.NovaName,
+				desc.Metadata.NovaInstance.NovaFlavor.FlavorName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserUUID,
+				desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectUUID,
+				desc.Metadata.NovaInstance.NovaRoot.RootType,
+				desc.Metadata.NovaInstance.NovaRoot.RootUUID,
+				iface.Name,
+				SourceBridge,
+				VirtualInterface)
+			}
 		if iface.RxDropSet {
 			ch <- prometheus.MustNewConstMetric(
 				libvirtDomainInterfaceRxDropDesc,
 				prometheus.CounterValue,
 				float64(iface.RxDrop),
 				domainName,
-				iface.Name)
-		}
+				domainUUID,
+				desc.Metadata.NovaInstance.NovaName,
+				desc.Metadata.NovaInstance.NovaFlavor.FlavorName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserUUID,
+				desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectUUID,
+				desc.Metadata.NovaInstance.NovaRoot.RootType,
+				desc.Metadata.NovaInstance.NovaRoot.RootUUID,
+				iface.Name,
+				SourceBridge,
+				VirtualInterface)
+			}
 		if iface.TxBytesSet {
 			ch <- prometheus.MustNewConstMetric(
 				libvirtDomainInterfaceTxBytesDesc,
 				prometheus.CounterValue,
 				float64(iface.TxBytes),
 				domainName,
-				iface.Name)
-		}
+				domainUUID,
+				desc.Metadata.NovaInstance.NovaName,
+				desc.Metadata.NovaInstance.NovaFlavor.FlavorName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserUUID,
+				desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectUUID,
+				desc.Metadata.NovaInstance.NovaRoot.RootType,
+				desc.Metadata.NovaInstance.NovaRoot.RootUUID,
+				iface.Name,
+				SourceBridge,
+				VirtualInterface)
+			}
 		if iface.TxPktsSet {
 			ch <- prometheus.MustNewConstMetric(
 				libvirtDomainInterfaceTxPacketsDesc,
 				prometheus.CounterValue,
 				float64(iface.TxPkts),
 				domainName,
-				iface.Name)
-		}
+				domainUUID,
+				desc.Metadata.NovaInstance.NovaName,
+				desc.Metadata.NovaInstance.NovaFlavor.FlavorName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserUUID,
+				desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectUUID,
+				desc.Metadata.NovaInstance.NovaRoot.RootType,
+				desc.Metadata.NovaInstance.NovaRoot.RootUUID,
+				iface.Name,
+				SourceBridge,
+				VirtualInterface)
+			}
 		if iface.TxErrsSet {
 			ch <- prometheus.MustNewConstMetric(
 				libvirtDomainInterfaceTxErrsDesc,
 				prometheus.CounterValue,
 				float64(iface.TxErrs),
 				domainName,
-				iface.Name)
-		}
+				domainUUID,
+				desc.Metadata.NovaInstance.NovaName,
+				desc.Metadata.NovaInstance.NovaFlavor.FlavorName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserUUID,
+				desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectUUID,
+				desc.Metadata.NovaInstance.NovaRoot.RootType,
+				desc.Metadata.NovaInstance.NovaRoot.RootUUID,
+				iface.Name,
+				SourceBridge,
+				VirtualInterface)
+			}
 		if iface.TxDropSet {
 			ch <- prometheus.MustNewConstMetric(
 				libvirtDomainInterfaceTxDropDesc,
 				prometheus.CounterValue,
 				float64(iface.TxDrop),
 				domainName,
-				iface.Name)
-		}
+				domainUUID,
+				desc.Metadata.NovaInstance.NovaName,
+				desc.Metadata.NovaInstance.NovaFlavor.FlavorName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserUUID,
+				desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectName,
+				desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectUUID,
+				desc.Metadata.NovaInstance.NovaRoot.RootType,
+				desc.Metadata.NovaInstance.NovaRoot.RootUUID,
+				iface.Name,
+				SourceBridge,
+				VirtualInterface)
+			}
 	}
 
 	// Collect Memory Stats
@@ -517,8 +854,8 @@ func CollectDomain(ch chan<- prometheus.Metric, stat libvirt.DomainStats) error 
 	var usedPercent float64
 	if err == nil {
 		MemoryStats = memoryStatCollect(&memorystat)
-		if (MemoryStats.Usable != 0 && MemoryStats.Available != 0) {
-			usedPercent = (float64(MemoryStats.Available) - float64(MemoryStats.Usable)) / (float64(MemoryStats.Available)/float64(100))
+		if MemoryStats.Usable != 0 && MemoryStats.Available != 0 {
+			usedPercent = (float64(MemoryStats.Available) - float64(MemoryStats.Usable)) / (float64(MemoryStats.Available) / float64(100))
 		}
 
 	}
@@ -526,48 +863,128 @@ func CollectDomain(ch chan<- prometheus.Metric, stat libvirt.DomainStats) error 
 		libvirtDomainMemoryStatMajorFaultTotalDesc,
 		prometheus.CounterValue,
 		float64(MemoryStats.MajorFault),
-		domainName)
+		domainName,
+		domainUUID,
+		desc.Metadata.NovaInstance.NovaName,
+		desc.Metadata.NovaInstance.NovaFlavor.FlavorName,
+		desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserName,
+		desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserUUID,
+		desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectName,
+		desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectUUID,
+		desc.Metadata.NovaInstance.NovaRoot.RootType,
+		desc.Metadata.NovaInstance.NovaRoot.RootUUID)
 	ch <- prometheus.MustNewConstMetric(
 		libvirtDomainMemoryStatMinorFaultTotalDesc,
 		prometheus.CounterValue,
 		float64(MemoryStats.MinorFault),
-		domainName)
+		domainName,
+		domainUUID,
+		desc.Metadata.NovaInstance.NovaName,
+		desc.Metadata.NovaInstance.NovaFlavor.FlavorName,
+		desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserName,
+		desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserUUID,
+		desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectName,
+		desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectUUID,
+		desc.Metadata.NovaInstance.NovaRoot.RootType,
+		desc.Metadata.NovaInstance.NovaRoot.RootUUID)
 	ch <- prometheus.MustNewConstMetric(
 		libvirtDomainMemoryStatUnusedBytesDesc,
 		prometheus.GaugeValue,
 		float64(MemoryStats.Unused)*1024,
-		domainName)
+		domainName,
+		domainUUID,
+		desc.Metadata.NovaInstance.NovaName,
+		desc.Metadata.NovaInstance.NovaFlavor.FlavorName,
+		desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserName,
+		desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserUUID,
+		desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectName,
+		desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectUUID,
+		desc.Metadata.NovaInstance.NovaRoot.RootType,
+		desc.Metadata.NovaInstance.NovaRoot.RootUUID)
 	ch <- prometheus.MustNewConstMetric(
 		libvirtDomainMemoryStatAvailableBytesDesc,
 		prometheus.GaugeValue,
 		float64(MemoryStats.Available)*1024,
-		domainName)
+		domainName,
+		domainUUID,
+		desc.Metadata.NovaInstance.NovaName,
+		desc.Metadata.NovaInstance.NovaFlavor.FlavorName,
+		desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserName,
+		desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserUUID,
+		desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectName,
+		desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectUUID,
+		desc.Metadata.NovaInstance.NovaRoot.RootType,
+		desc.Metadata.NovaInstance.NovaRoot.RootUUID)
 	ch <- prometheus.MustNewConstMetric(
 		libvirtDomainMemoryStatActualBaloonBytesDesc,
 		prometheus.GaugeValue,
 		float64(MemoryStats.ActualBalloon)*1024,
-		domainName)
+		domainName,
+		domainUUID,
+		desc.Metadata.NovaInstance.NovaName,
+		desc.Metadata.NovaInstance.NovaFlavor.FlavorName,
+		desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserName,
+		desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserUUID,
+		desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectName,
+		desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectUUID,
+		desc.Metadata.NovaInstance.NovaRoot.RootType,
+		desc.Metadata.NovaInstance.NovaRoot.RootUUID)
 	ch <- prometheus.MustNewConstMetric(
 		libvirtDomainMemoryStatRssBytesDesc,
 		prometheus.GaugeValue,
 		float64(MemoryStats.Rss)*1024,
-		domainName)
+		domainName,
+		domainUUID,
+		desc.Metadata.NovaInstance.NovaName,
+		desc.Metadata.NovaInstance.NovaFlavor.FlavorName,
+		desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserName,
+		desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserUUID,
+		desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectName,
+		desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectUUID,
+		desc.Metadata.NovaInstance.NovaRoot.RootType,
+		desc.Metadata.NovaInstance.NovaRoot.RootUUID)
 	ch <- prometheus.MustNewConstMetric(
 		libvirtDomainMemoryStatUsableBytesDesc,
 		prometheus.GaugeValue,
 		float64(MemoryStats.Usable)*1024,
-		domainName)
+		domainName,
+		domainUUID,
+		desc.Metadata.NovaInstance.NovaName,
+		desc.Metadata.NovaInstance.NovaFlavor.FlavorName,
+		desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserName,
+		desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserUUID,
+		desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectName,
+		desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectUUID,
+		desc.Metadata.NovaInstance.NovaRoot.RootType,
+		desc.Metadata.NovaInstance.NovaRoot.RootUUID)
 	ch <- prometheus.MustNewConstMetric(
 		libvirtDomainMemoryStatDiskCachesBytesDesc,
 		prometheus.GaugeValue,
 		float64(MemoryStats.DiskCaches)*1024,
-		domainName)
+		domainName,
+		domainUUID,
+		desc.Metadata.NovaInstance.NovaName,
+		desc.Metadata.NovaInstance.NovaFlavor.FlavorName,
+		desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserName,
+		desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserUUID,
+		desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectName,
+		desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectUUID,
+		desc.Metadata.NovaInstance.NovaRoot.RootType,
+		desc.Metadata.NovaInstance.NovaRoot.RootUUID)
 	ch <- prometheus.MustNewConstMetric(
 		libvirtDomainMemoryStatUsedPercentDesc,
 		prometheus.GaugeValue,
 		float64(usedPercent),
-		domainName)
-
+		domainName,
+		domainUUID,
+		desc.Metadata.NovaInstance.NovaName,
+		desc.Metadata.NovaInstance.NovaFlavor.FlavorName,
+		desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserName,
+		desc.Metadata.NovaInstance.NovaOwner.NovaUser.UserUUID,
+		desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectName,
+		desc.Metadata.NovaInstance.NovaOwner.NovaProject.ProjectUUID,
+		desc.Metadata.NovaInstance.NovaRoot.RootType,
+		desc.Metadata.NovaInstance.NovaRoot.RootUUID)
 
 	return nil
 }
@@ -709,6 +1126,8 @@ func main() {
 		metricsPath   = app.Flag("web.telemetry-path", "Path under which to expose metrics.").Default("/metrics").String()
 		libvirtURI    = app.Flag("libvirt.uri", "Libvirt URI from which to extract metrics.").Default("qemu:///system").String()
 	)
+	projectFilter = app.Flag("filter.project", "Regular expression matching project names that should be filtered out.").Default("^$").String()
+
 	kingpin.MustParse(app.Parse(os.Args[1:]))
 
 	exporter, err := NewLibvirtExporter(*libvirtURI)
